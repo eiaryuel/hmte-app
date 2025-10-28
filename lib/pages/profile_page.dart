@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:hmte_app/pages/login_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  final User user;
+  const ProfilePage({super.key, required this.user});
 
   // Warna Anda
   static const Color kMainBlue = Color(0xFF313A6A);
@@ -37,12 +40,20 @@ class ProfilePage extends StatelessWidget {
                     const SizedBox(height: 50),
 
                     // Info Placeholder
-                    _buildInfoRow(icon: Icons.person, text: 'John Doe'),
-                    _buildInfoRow(icon: Icons.school, text: '1234567890'),
+                    _buildInfoRow(
+                      icon: Icons.person,
+                      text: user.userMetadata?['nama'] ?? 'No Name',
+                    ),
+                    _buildInfoRow(
+                      icon: Icons.school,
+                      text: user.userMetadata?['nim'] ?? 'No NIM',
+                    ),
                     _buildInfoRow(
                       icon: Icons.email,
-                      text: 'john.doe@email.com',
+                      text: user.email ?? 'No Email',
                     ),
+                    const SizedBox(height: 50),
+                    _buildLogoutButton(context),
                   ],
                 ),
               ),
@@ -111,6 +122,36 @@ class ProfilePage extends StatelessWidget {
           // Teks Info
           Text(text, style: const TextStyle(color: Colors.white, fontSize: 18)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () async {
+          await Supabase.instance.client.auth.signOut();
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (Route<dynamic> route) => false,
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.red,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30.0),
+          ),
+        ),
+        child: const Text(
+          'Logout',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }

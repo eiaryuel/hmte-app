@@ -1,11 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
   // Warna gradien yang sama dengan login screen
   static const Color kMainBlue = Color(0xFF313A6A);
   static const Color kLightBlue = Color(0xFF0172B2);
+
+  final _nameController = TextEditingController();
+  final _npmController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _npmController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,26 +59,37 @@ class RegisterScreen extends StatelessWidget {
                   const SizedBox(height: 40),
 
                   // 2. Text Fields
-                  _buildTextField(label: 'Nama'),
+                  _buildTextField(label: 'Nama', controller: _nameController),
                   const SizedBox(height: 20),
                   _buildTextField(
                     label: 'NPM',
                     keyboardType: TextInputType.number,
+                    controller: _npmController,
                   ),
                   const SizedBox(height: 20),
                   _buildTextField(
                     label: 'No. HP',
                     keyboardType: TextInputType.phone,
+                    controller: _phoneController,
                   ),
                   const SizedBox(height: 20),
                   _buildTextField(
                     label: 'Email',
                     keyboardType: TextInputType.emailAddress,
+                    controller: _emailController,
                   ),
                   const SizedBox(height: 20),
-                  _buildTextField(label: 'Password', obscureText: true),
+                  _buildTextField(
+                    label: 'Password',
+                    obscureText: true,
+                    controller: _passwordController,
+                  ),
                   const SizedBox(height: 20),
-                  _buildTextField(label: 'Confirm Password', obscureText: true),
+                  _buildTextField(
+                    label: 'Confirm Password',
+                    obscureText: true,
+                    controller: _confirmPasswordController,
+                  ),
                   const SizedBox(height: 50),
 
                   // 3. Widget Tombol Register
@@ -104,10 +139,12 @@ class RegisterScreen extends StatelessWidget {
   // Helper untuk membuat Text Field agar tidak duplikat kode
   Widget _buildTextField({
     required String label,
+    required TextEditingController controller,
     TextInputType? keyboardType,
     bool obscureText = false,
   }) {
     return TextField(
+      controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
       style: const TextStyle(color: Colors.white), // Teks input
@@ -128,10 +165,43 @@ class RegisterScreen extends StatelessWidget {
     return SizedBox(
       width: double.infinity, // Tombol selebar layar
       child: ElevatedButton(
-        onPressed: () {
-          // Aksi saat register ditekan:
-          // Untuk saat ini, kita kembali ke halaman Login
-          Navigator.of(context).pop();
+        onPressed: () async {
+          final supabase = Supabase.instance.client;
+          final email = _emailController.text;
+          final password = _passwordController.text;
+          final confirmPassword = _confirmPasswordController.text;
+
+          if (password != confirmPassword) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Passwords do not match')),
+            );
+            return;
+          }
+
+          try {
+            final response = await supabase.auth.signUp(
+              email: email,
+              password: password,
+              data: {
+                'full_name': _nameController.text,
+                'npm': _npmController.text,
+                'phone': _phoneController.text,
+              },
+            );
+
+            if (response.user != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Registration successful! Please login.'),
+                ),
+              );
+              Navigator.of(context).pop();
+            }
+          } on AuthException catch (e) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(e.message)));
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white, // Warna tombol

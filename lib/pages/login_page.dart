@@ -1,13 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:hmte_app/pages/homepage.dart';
 import 'package:hmte_app/pages/register_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
   // Warna gradien dari gambar
   static const Color kMainBlue = Color(0xFF313A6A);
   static const Color kLightBlue = Color(0xFF0172B2);
+
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,11 +55,11 @@ class LoginScreen extends StatelessWidget {
                   const SizedBox(height: 60),
 
                   // 2. Widget Text Field Email
-                  _buildEmailField(),
+                  _buildEmailField(_emailController),
                   const SizedBox(height: 20),
 
                   // 3. Widget Text Field Password
-                  _buildPasswordField(),
+                  _buildPasswordField(_passwordController),
                   const SizedBox(height: 70),
 
                   // 4. Widget Tombol Login
@@ -88,11 +104,12 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmailField() {
-    return const TextField(
+  Widget _buildEmailField(TextEditingController controller) {
+    return TextField(
+      controller: controller,
       keyboardType: TextInputType.emailAddress,
-      style: TextStyle(color: Colors.white), // Teks input
-      decoration: InputDecoration(
+      style: const TextStyle(color: Colors.white), // Teks input
+      decoration: const InputDecoration(
         labelText: 'Email',
         labelStyle: TextStyle(color: Colors.white70),
         enabledBorder: UnderlineInputBorder(
@@ -105,11 +122,12 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPasswordField() {
-    return const TextField(
+  Widget _buildPasswordField(TextEditingController controller) {
+    return TextField(
+      controller: controller,
       obscureText: true, // Menyembunyikan teks password
-      style: TextStyle(color: Colors.white), // Teks input
-      decoration: InputDecoration(
+      style: const TextStyle(color: Colors.white), // Teks input
+      decoration: const InputDecoration(
         labelText: 'Password',
         labelStyle: TextStyle(color: Colors.white70),
         enabledBorder: UnderlineInputBorder(
@@ -126,13 +144,28 @@ class LoginScreen extends StatelessWidget {
     return SizedBox(
       width: double.infinity, // Tombol selebar layar
       child: ElevatedButton(
-        onPressed: () {
-          // Aksi saat login ditekan:
-          // Pindah ke HomeScreen dan hapus halaman Login dari tumpukan
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-            (Route<dynamic> route) => false,
-          );
+        onPressed: () async {
+          final supabase = Supabase.instance.client;
+          final email = _emailController.text;
+          final password = _passwordController.text;
+
+          try {
+            final response = await supabase.auth.signInWithPassword(
+              email: email,
+              password: password,
+            );
+
+            if (response.user != null) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                (Route<dynamic> route) => false,
+              );
+            }
+          } on AuthException catch (e) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(e.message)));
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white, // Warna tombol

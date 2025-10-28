@@ -7,9 +7,32 @@ import 'package:hmte_app/pages/login_page.dart';
 import 'package:hmte_app/models/blog_post_mode.dart';
 import 'package:hmte_app/pages/profile_page.dart';
 import 'package:hmte_app/pages/blog_detail_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  User? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _getProfile();
+  }
+
+  Future<void> _getProfile() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      setState(() {
+        _user = user;
+      });
+    }
+  }
 
   // Warna utama background
   static const Color kMainBlue = Color(0xFF313A6A);
@@ -72,14 +95,16 @@ class HomeScreen extends StatelessWidget {
 
   // Widget untuk Header
   Widget _buildHeader(BuildContext context) {
+    final displayName = _user?.userMetadata?['nama'] as String? ?? 'John Doe';
+
     return Padding(
       padding: const EdgeInsets.only(top: 20.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Hello,\nJohn Doe!',
-            style: TextStyle(
+          Text(
+            'Hello,\n$displayName!',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -87,10 +112,19 @@ class HomeScreen extends StatelessWidget {
           ),
           GestureDetector(
             onTap: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                (Route<dynamic> route) => false,
-              );
+              if (_user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProfilePage(user: _user!),
+                  ),
+                );
+              } else {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (Route<dynamic> route) => false,
+                );
+              }
             },
             child: Container(
               padding: const EdgeInsets.all(12),
@@ -282,10 +316,19 @@ class HomeScreen extends StatelessWidget {
           ),
           GestureDetector(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfilePage()),
-              );
+              if (_user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProfilePage(user: _user!),
+                  ),
+                );
+              } else {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (Route<dynamic> route) => false,
+                );
+              }
             },
             child: Icon(
               Icons.person_outline,
