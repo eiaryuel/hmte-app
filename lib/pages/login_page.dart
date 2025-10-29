@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hmte_app/pages/homepage.dart';
 import 'package:hmte_app/pages/register_page.dart';
 import 'package:hmte_app/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -138,23 +139,32 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity, // Tombol selebar layar
       child: ElevatedButton(
         onPressed: () async {
-          final email = _emailController.text.trim();
-          final password = _passwordController.text.trim();
+          try {
+            final email = _emailController.text.trim();
+            final password = _passwordController.text.trim();
 
-          final response = await SupabaseService.client.auth.signInWithPassword(
-            email: email,
-            password: password,
-          );
-
-          if (response.user != null) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (Route<dynamic> route) => false,
+            final response = await SupabaseService.client.auth.signInWithPassword(
+              email: email,
+              password: password,
             );
-          } else {
+
+            if (response.user != null) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                (Route<dynamic> route) => false,
+              );
+            }
+          } on AuthException catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(e.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          } catch (e) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Login failed'),
+                content: Text('An unexpected error occurred'),
                 backgroundColor: Colors.red,
               ),
             );

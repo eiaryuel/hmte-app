@@ -7,13 +7,62 @@ import 'package:hmte_app/pages/login_page.dart';
 import 'package:hmte_app/models/blog_post_mode.dart';
 import 'package:hmte_app/pages/profile_page.dart';
 import 'package:hmte_app/pages/blog_detail_page.dart';
+import 'package:hmte_app/supabase_service.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   // Warna utama background
   static const Color kMainBlue = Color(0xFF313A6A);
   static const Color kLightBlue = Color(0xFF0172B2);
+
+  String? _userName;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserName();
+  }
+
+  Future<void> _fetchUserName() async {
+    try {
+      final client = SupabaseService.client;
+      final user = client.auth.currentUser;
+
+      if (user != null) {
+        // GANTI .single() menjadi .maybeSingle()
+        final response = await client
+            .from('profiles')
+            .select('name')
+            .eq('id', user.id)
+            .maybeSingle(); // <--- SOLUSI
+
+        // Cek apakah response TIDAK null sebelum mengambil data
+        if (response != null && response.isNotEmpty) {
+          setState(() {
+            _userName = response['name'] as String?;
+          });
+        } else {
+          // Handle jika user login tapi tidak punya profile
+          // Anda bisa set default name di sini
+          setState(() {
+            _userName = 'Guest'; // Atau 'Nama Default', dll.
+          });
+        }
+      }
+    } catch (e) {
+      // Handle jika ada error lain (cth: network, RLS, dll)
+      debugPrint('Error fetching user name: $e');
+      setState(() {
+        _userName = 'Error'; // Tampilkan error di UI jika perlu
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,9 +126,9 @@ class HomeScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Hello,\nJohn Doe!',
-            style: TextStyle(
+          Text(
+            'Hello,\n${_userName ?? 'Guest'}!',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -87,10 +136,17 @@ class HomeScreen extends StatelessWidget {
           ),
           GestureDetector(
             onTap: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                (Route<dynamic> route) => false,
-              );
+              if (_userName != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfilePage()),
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              }
             },
             child: Container(
               padding: const EdgeInsets.all(12),
