@@ -1,11 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:hmte_app/supabase_service.dart';
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
   // Warna gradien yang sama dengan login screen
   static const Color kMainBlue = Color(0xFF313A6A);
   static const Color kLightBlue = Color(0xFF0172B2);
+
+  final _nameController = TextEditingController();
+  final _npmController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -35,26 +48,36 @@ class RegisterScreen extends StatelessWidget {
                   const SizedBox(height: 40),
 
                   // 2. Text Fields
-                  _buildTextField(label: 'Nama'),
+                  _buildTextField(
+                      label: 'Nama', controller: _nameController),
                   const SizedBox(height: 20),
                   _buildTextField(
                     label: 'NPM',
                     keyboardType: TextInputType.number,
+                    controller: _npmController,
                   ),
                   const SizedBox(height: 20),
                   _buildTextField(
                     label: 'No. HP',
                     keyboardType: TextInputType.phone,
+                    controller: _phoneController,
                   ),
                   const SizedBox(height: 20),
                   _buildTextField(
                     label: 'Email',
                     keyboardType: TextInputType.emailAddress,
+                    controller: _emailController,
                   ),
                   const SizedBox(height: 20),
-                  _buildTextField(label: 'Password', obscureText: true),
+                  _buildTextField(
+                      label: 'Password',
+                      obscureText: true,
+                      controller: _passwordController),
                   const SizedBox(height: 20),
-                  _buildTextField(label: 'Confirm Password', obscureText: true),
+                  _buildTextField(
+                      label: 'Confirm Password',
+                      obscureText: true,
+                      controller: _confirmPasswordController),
                   const SizedBox(height: 50),
 
                   // 3. Widget Tombol Register
@@ -83,11 +106,11 @@ class RegisterScreen extends StatelessWidget {
       // Anda bisa tetap menggunakan BoxDecoration untuk border atau background circle jika ingin
       // atau hilangkan jika logo sudah berbentuk lingkaran/transparan dan ingin menyesuaikan ukuran
       decoration: BoxDecoration(
-        // Jika logo sudah bulat/transparan, Anda bisa hapus warna atau border di sini
-        // color: Colors.white.withOpacity(0.2),
-        // shape: BoxShape.circle,
-        // border: Border.all(color: Colors.white, width: 2),
-      ),
+          // Jika logo sudah bulat/transparan, Anda bisa hapus warna atau border di sini
+          // color: Colors.white.withOpacity(0.2),
+          // shape: BoxShape.circle,
+          // border: Border.all(color: Colors.white, width: 2),
+          ),
       child: ClipOval(
         // Opsional: Untuk memastikan gambar dipotong menjadi lingkaran
         child: Image.asset(
@@ -106,8 +129,10 @@ class RegisterScreen extends StatelessWidget {
     required String label,
     TextInputType? keyboardType,
     bool obscureText = false,
+    required TextEditingController controller,
   }) {
     return TextField(
+      controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
       style: const TextStyle(color: Colors.white), // Teks input
@@ -128,10 +153,49 @@ class RegisterScreen extends StatelessWidget {
     return SizedBox(
       width: double.infinity, // Tombol selebar layar
       child: ElevatedButton(
-        onPressed: () {
-          // Aksi saat register ditekan:
-          // Untuk saat ini, kita kembali ke halaman Login
-          Navigator.of(context).pop();
+        onPressed: () async {
+          final email = _emailController.text.trim();
+          final password = _passwordController.text.trim();
+          final confirmPassword = _confirmPasswordController.text.trim();
+
+          if (password != confirmPassword) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Passwords do not match'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+
+          final response = await SupabaseService.client.auth.signUp(
+            email: email,
+            password: password,
+          );
+
+          if (response.user != null) {
+            await SupabaseService.client.from('profiles').insert({
+              'id': response.user!.id,
+              'name': _nameController.text.trim(),
+              'npm': _npmController.text.trim(),
+              'phone': _phoneController.text.trim(),
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Registration successful!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            Navigator.of(context).pop();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Registration failed'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white, // Warna tombol

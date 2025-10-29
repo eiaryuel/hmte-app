@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:hmte_app/pages/homepage.dart';
 import 'package:hmte_app/pages/register_page.dart';
+import 'package:hmte_app/supabase_service.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
   // Warna gradien dari gambar
   static const Color kMainBlue = Color(0xFF313A6A);
   static const Color kLightBlue = Color(0xFF0172B2);
+
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -89,10 +98,11 @@ class LoginScreen extends StatelessWidget {
   }
 
   Widget _buildEmailField() {
-    return const TextField(
+    return TextField(
+      controller: _emailController,
       keyboardType: TextInputType.emailAddress,
-      style: TextStyle(color: Colors.white), // Teks input
-      decoration: InputDecoration(
+      style: const TextStyle(color: Colors.white), // Teks input
+      decoration: const InputDecoration(
         labelText: 'Email',
         labelStyle: TextStyle(color: Colors.white70),
         enabledBorder: UnderlineInputBorder(
@@ -106,10 +116,11 @@ class LoginScreen extends StatelessWidget {
   }
 
   Widget _buildPasswordField() {
-    return const TextField(
+    return TextField(
+      controller: _passwordController,
       obscureText: true, // Menyembunyikan teks password
-      style: TextStyle(color: Colors.white), // Teks input
-      decoration: InputDecoration(
+      style: const TextStyle(color: Colors.white), // Teks input
+      decoration: const InputDecoration(
         labelText: 'Password',
         labelStyle: TextStyle(color: Colors.white70),
         enabledBorder: UnderlineInputBorder(
@@ -126,13 +137,28 @@ class LoginScreen extends StatelessWidget {
     return SizedBox(
       width: double.infinity, // Tombol selebar layar
       child: ElevatedButton(
-        onPressed: () {
-          // Aksi saat login ditekan:
-          // Pindah ke HomeScreen dan hapus halaman Login dari tumpukan
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-            (Route<dynamic> route) => false,
+        onPressed: () async {
+          final email = _emailController.text.trim();
+          final password = _passwordController.text.trim();
+
+          final response = await SupabaseService.client.auth.signInWithPassword(
+            email: email,
+            password: password,
           );
+
+          if (response.user != null) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (Route<dynamic> route) => false,
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Login failed'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white, // Warna tombol
@@ -181,3 +207,4 @@ class LoginScreen extends StatelessWidget {
     );
   }
 }
+

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hmte_app/supabase_service.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart'; // Import package
 
 class VotingPage extends StatefulWidget {
@@ -123,20 +124,56 @@ class _VotingPageState extends State<VotingPage> {
         color: Colors.black,
         fontWeight: FontWeight.bold,
       ),
-      onConfirmation: () {
-        // Aksi setelah slide berhasil
-        if (_selectedCandidate != null) {
-          print("Berhasil vote untuk: $_selectedCandidate");
-          // Kembali ke halaman Elevote (hasil)
-          Navigator.pop(context);
-        } else {
+      onConfirmation: () async {
+        // 1. Cek apakah calon sudah dipilih
+        if (_selectedCandidate == null) {
           // Tampilkan pesan jika belum memilih
+          if (!mounted) return; // Selalu cek 'mounted'
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Silakan pilih salah satu calon terlebih dahulu.'),
               backgroundColor: Colors.red,
             ),
           );
+          return; // Hentikan fungsi
+        }
+
+        // Tampilkan loading spinner
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) =>
+              const Center(child: CircularProgressIndicator()),
+        );
+
+        try {
+          final client = SupabaseService.client;
+
+          // 2. Tentukan ID berdasarkan pilihan (Masih hard-code, lihat poin 3)
+          final candidateId = _selectedCandidate == 'Calon 1' ? 1 : 2;
+
+          // 3. Panggil fungsi RPC 'increment_vote' (Jauh lebih baik!)
+          await client.rpc(
+            'increment_vote',
+            params: {'candidate_id': candidateId},
+          );
+
+          // 4. Tutup loading dan kembali
+          if (mounted) {
+            Navigator.pop(context); // Tutup loading
+            Navigator.pop(context); // Kembali ke halaman Elevote
+          }
+        } catch (e) {
+          // Jika ada error (misal RLS, offline, dll)
+          if (mounted) {
+            Navigator.pop(context); // Tutup loading
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Vote Gagal: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         }
       },
       backgroundColor: Colors.white,

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:hmte_app/pages/homepage.dart';
+import 'package:hmte_app/pages/login_page.dart';
+import 'package:hmte_app/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SupabaseService.initialize();
   runApp(const MyApp());
 }
 
@@ -15,7 +20,16 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'HMTE APP',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const HomeScreen(),
+      home: StreamBuilder<AuthState>(
+        stream: SupabaseService.client.auth.onAuthStateChange,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return const HomeScreen();
+          } else {
+            return const LoginScreen();
+          }
+        },
+      ),
     );
   }
 }

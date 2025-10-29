@@ -1,22 +1,70 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hmte_app/pages/uniqe_code_page.dart';
-import 'package:pie_chart/pie_chart.dart'; // Import package
+import 'package:hmte_app/supabase_service.dart';
+import 'package:pie_chart/pie_chart.dart';
 
-class ElevotePage extends StatelessWidget {
+class ElevotePage extends StatefulWidget {
   const ElevotePage({super.key});
 
-  // Warna gradien
+  @override
+  State<ElevotePage> createState() => _ElevotePageState();
+}
+
+class _ElevotePageState extends State<ElevotePage> {
   static const Color kMainBlue = Color(0xFF313A6A);
   static const Color kLightBlue = Color(0xFF0172B2);
 
-  // Data untuk chart
-  static Map<String, double> dataMap = {"Calon A": 70, "Calon B": 30};
+  Map<String, double> dataMap = {};
+  bool _isLoading = true;
 
-  // Warna untuk chart
   static final colorList = <Color>[
     const Color(0xFFC93434), // Merah
     const Color(0xFF9E9D24), // Hijau Zaitun
+    // Anda bisa tambah warna lagi jika kandidat > 2
   ];
+
+  late final StreamSubscription _candidatesSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToVotes();
+  }
+
+  @override
+  void dispose() {
+    _candidatesSubscription.cancel();
+    super.dispose();
+  }
+
+  void _listenToVotes() {
+    _candidatesSubscription = SupabaseService.client
+        .from('candidates')
+        .stream(primaryKey: ['id'])
+        .listen(
+          (event) {
+            setState(() {
+              print('DATA DARI STREAM: $event');
+
+              dataMap = {
+                for (var item in event)
+                  (item['nama'] as String? ?? 'Data Kosong'):
+                      (item['votes'] as int? ?? 0).toDouble(),
+              };
+              _isLoading = false; // <-- Data sudah diterima, loading selesai
+            });
+          },
+          onError: (e) {
+            // Handle jika ada error stream
+            setState(() {
+              _isLoading = false;
+            });
+            print('Error listening to votes: $e');
+          },
+        );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,26 +79,23 @@ class ElevotePage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
-          // SingleChildScrollView akan membuat halaman bisa di-scroll
           child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 children: [
-                  // 1. Tombol "Back" Kustom
                   _buildBackButton(context),
                   const SizedBox(height: 30),
 
                   // 2. Kartu Putih berisi Chart
-                  _buildChartCard(context),
+                  _buildChartCard(context), // <-- WIDGET INI DIUBAH
                   const SizedBox(height: 40),
 
                   // 3. Tombol "VOTE NOW"
                   _buildVoteButton(context),
+                  const SizedBox(height: 40),
 
-                  // --- TAMBAHAN BARU: KARTU VISI & MISI ---
-                  const SizedBox(height: 40), // Jarak sebelum kartu pertama
-
+                  // --- KARTU VISI & MISI (TETAP HARD-CODE) ---
                   _buildCandidateCard(
                     candidateName: 'Calon A',
                     vision:
@@ -71,8 +116,8 @@ class ElevotePage extends StatelessWidget {
                         '3. Membangun citra positif himpunan di tingkat universitas.',
                   ),
 
-                  const SizedBox(height: 20), // Jarak di paling bawah
-                  // --- AKHIR TAMBAHAN ---
+                  // --- AKHIR BAGIAN HARD-CODE ---
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -85,7 +130,7 @@ class ElevotePage extends StatelessWidget {
   // --- WIDGET HELPER ---
 
   Widget _buildBackButton(BuildContext context) {
-    // ... (Fungsi ini tetap sama, tidak perlu diubah)
+    // ... (Tidak ada perubahan)
     return Row(
       children: [
         GestureDetector(
@@ -111,8 +156,37 @@ class ElevotePage extends StatelessWidget {
     );
   }
 
+  // --- PERUBAHAN UTAMA DI FUNGSI INI ---
   Widget _buildChartCard(BuildContext context) {
-    // ... (Fungsi ini tetap sama, tidak perlu diubah)
+    // Tampilkan loading jika dataMap masih kosong ATAU state isLoading true
+    if (_isLoading) {
+      return Container(
+        height: 200, // Beri tinggi agar loading terlihat
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    // Hitung total votes dengan aman
+    final totalVotes = dataMap.isEmpty
+        ? 0.0
+        : dataMap.values.reduce((a, b) => a + b);
+
+    // Ambil data vote dengan aman (null-safe)
+    // ⬇️ PENTING: Ganti "Calon 1" dan "Calon 2" agar sesuai
+    //    dengan string 'name' di tabel Supabase Anda.
+    final votesCalon1 = dataMap['Calon 1'] ?? 0.0;
+    final votesCalon2 = dataMap['Calon 2'] ?? 0.0;
+
+    // Hitung persentase dengan aman
+    final percentCalon1 = totalVotes == 0.0
+        ? 0.0
+        : (votesCalon1 / totalVotes * 100);
+    final percentCalon2 = totalVotes == 0.0
+        ? 0.0
+        : (votesCalon2 / totalVotes * 100);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
@@ -133,7 +207,11 @@ class ElevotePage extends StatelessWidget {
           ),
           const SizedBox(height: 30),
           PieChart(
-            dataMap: dataMap,
+            // Tampilan chart tetap sama
+            // Handle jika 0 vote agar chart tidak error
+            dataMap: dataMap.isEmpty || totalVotes == 0.0
+                ? {"Belum ada vote": 1.0}
+                : dataMap,
             animationDuration: const Duration(milliseconds: 800),
             chartRadius: MediaQuery.of(context).size.width / 2.2,
             colorList: colorList,
@@ -147,22 +225,28 @@ class ElevotePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 30),
-          const Text(
-            'Calon A : 70 suara (70%)',
-            style: TextStyle(fontSize: 16, color: Colors.black87),
+
+          // --- PERUBAHAN DI SINI ---
+          // Tampilan UI tetap "Calon A", tapi data ambil dari "Calon 1"
+          Text(
+            'Calon A : ${votesCalon1.toInt()} suara (${percentCalon1.toStringAsFixed(1)}%)',
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Calon B : 30 suara (30%)',
-            style: TextStyle(fontSize: 16, color: Colors.black87),
+          // Tampilan UI tetap "Calon B", tapi data ambil dari "Calon 2"
+          Text(
+            'Calon B : ${votesCalon2.toInt()} suara (${percentCalon2.toStringAsFixed(1)}%)',
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
           ),
+          // --- AKHIR PERUBAHAN ---
         ],
       ),
     );
   }
+  // --- AKHIR PERUBAHAN UTAMA ---
 
   Widget _buildVoteButton(BuildContext context) {
-    // ... (Fungsi ini tetap sama, tidak perlu diubah)
+    // ... (Tidak ada perubahan)
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -188,7 +272,7 @@ class ElevotePage extends StatelessWidget {
     );
   }
 
-  // --- TAMBAHAN BARU: FUNGSI UNTUK KARTU VISI & MISI ---
+  // --- KARTU INI TETAP HARD-CODE (TIDAK BERUBAH) ---
   Widget _buildCandidateCard({
     required String candidateName,
     required String vision,
@@ -196,7 +280,6 @@ class ElevotePage extends StatelessWidget {
   }) {
     return Container(
       width: double.infinity,
-      // Beri jarak antar kartu
       margin: const EdgeInsets.only(bottom: 20.0),
       padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
@@ -204,10 +287,8 @@ class ElevotePage extends StatelessWidget {
         borderRadius: BorderRadius.circular(20.0),
       ),
       child: Column(
-        // Rata kiri
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Nama Calon
           Text(
             candidateName,
             style: const TextStyle(
@@ -217,8 +298,6 @@ class ElevotePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-
-          // Visi
           const Text(
             'Visi:',
             style: TextStyle(
@@ -233,12 +312,10 @@ class ElevotePage extends StatelessWidget {
             style: const TextStyle(
               fontSize: 14,
               color: Colors.black54,
-              height: 1.5, // Jarak antar baris
+              height: 1.5,
             ),
           ),
           const SizedBox(height: 20),
-
-          // Misi
           const Text(
             'Misi:',
             style: TextStyle(
@@ -253,13 +330,11 @@ class ElevotePage extends StatelessWidget {
             style: const TextStyle(
               fontSize: 14,
               color: Colors.black54,
-              height: 1.5, // Jarak antar baris
+              height: 1.5,
             ),
           ),
         ],
       ),
     );
   }
-
-  // --- AKHIR TAMBAHAN ---
 }

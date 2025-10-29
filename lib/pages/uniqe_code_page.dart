@@ -1,12 +1,38 @@
-import 'package:flutter/material.dart';
-import 'voting_page.dart'; // Import halaman voting
+import 'dart:math';
 
-class UniqueCodePage extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:hmte_app/supabase_service.dart';
+import 'voting_page.dart';
+
+class UniqueCodePage extends StatefulWidget {
   const UniqueCodePage({super.key});
 
-  // --- PERUBAHAN WARNA ---
+  @override
+  State<UniqueCodePage> createState() => _UniqueCodePageState();
+}
+
+class _UniqueCodePageState extends State<UniqueCodePage> {
   static const Color kMainBlue = Color(0xFF313A6A);
   static const Color kLightBlue = Color(0xFF0172B2);
+
+  final _otpController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _generateAndSaveOtp();
+  }
+
+  Future<void> _generateAndSaveOtp() async {
+    final client = SupabaseService.client;
+    final user = client.auth.currentUser;
+
+    if (user != null) {
+      final otp = (100000 + Random().nextInt(900000)).toString();
+      await client.from('otps').insert({'user_id': user.id, 'otp': otp});
+      print('Your OTP is: $otp');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +56,7 @@ class UniqueCodePage extends StatelessWidget {
                   const SizedBox(height: 100),
                   _buildCodeField(),
                   const SizedBox(height: 60),
-                  _buildConfirmButton(
-                    context,
-                  ), // Perubahan ada di dalam fungsi ini
+                  _buildConfirmButton(context),
                 ],
               ),
             ),
@@ -43,7 +67,6 @@ class UniqueCodePage extends StatelessWidget {
   }
 
   Widget _buildBackButton(BuildContext context) {
-    // ... (Fungsi ini tidak berubah)
     return Row(
       children: [
         GestureDetector(
@@ -70,13 +93,13 @@ class UniqueCodePage extends StatelessWidget {
   }
 
   Widget _buildCodeField() {
-    // ... (Fungsi ini tidak berubah)
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20.0),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: TextField(
+        controller: _otpController,
         textAlign: TextAlign.left,
-        style: TextStyle(color: Colors.white, fontSize: 18),
-        decoration: InputDecoration(
+        style: const TextStyle(color: Colors.white, fontSize: 18),
+        decoration: const InputDecoration(
           labelText: 'Enter Unique Code',
           labelStyle: TextStyle(color: Colors.white70),
           enabledBorder: UnderlineInputBorder(
@@ -90,24 +113,44 @@ class UniqueCodePage extends StatelessWidget {
     );
   }
 
-  // --- MODIFIKASI FUNGSI INI ---
   Widget _buildConfirmButton(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-          onPressed: () {
-            // Aksi saat "CONFIRM" ditekan
-            print("Kode dikonfirmasi! Pindah ke Halaman Voting.");
+          onPressed: () async {
+            final client = SupabaseService.client;
+            final user = client.auth.currentUser;
+            final enteredOtp = _otpController.text.trim();
 
-            // --- GANTI NAVIGASI ---
-            // Kita gunakan pushReplacement agar pengguna tidak bisa "kembali"
-            // ke halaman unique code dari halaman voting.
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const VotingPage()),
-            );
+            if (user == null) return;
+
+            try {
+              final response = await client
+                  .from('otps')
+                  .select()
+                  .eq('user_id', user.id)
+                  .eq('otp', enteredOtp)
+                  .order('created_at', ascending: false)
+                  .limit(1)
+                  .single();
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const VotingPage()),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Invalid or expired OTP'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.white,
