@@ -1,23 +1,20 @@
-// lib/blog_detail_page.dart (FILE BARU)
+// lib/pages/blog_detail_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_lorem/flutter_lorem.dart'; // Import package placeholder
-import 'package:hmte_app/models/blog_post_mode.dart'; // Import model data Anda
+import 'package:flutter_lorem/flutter_lorem.dart';
+import 'package:hmte_app/models/blog_post_mode.dart';
 
 class BlogDetailPage extends StatelessWidget {
-  // 1. Halaman ini menerima satu objek BlogPost
   final BlogPost post;
 
   const BlogDetailPage({super.key, required this.post});
 
-  // Warna Anda
   static const Color kMainBlue = Color(0xFF313A6A);
   static const Color kLightBlue = Color(0xFF0172B2);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      // Latar belakang gradien
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [kLightBlue, kMainBlue],
@@ -28,19 +25,19 @@ class BlogDetailPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
-          // Gunakan SingleChildScrollView agar konten bisa di-scroll
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 2. Tombol Back
+                // 1. Tombol Back
                 _buildBackButton(context),
 
-                // 3. Hero Image (Gambar Utama Blog)
+                // 2. Hero Image
                 _buildHeroImage(post.imageUrl),
 
-                // 4. Konten (Judul, Tanggal, Isi)
-                _buildBlogContent(post.title, post.date),
+                // 3. Konten (Judul, Tanggal, Author, Isi)
+                // Kita tambahkan parameter post.author di sini
+                _buildBlogContent(post.title, post.date, post.author),
               ],
             ),
           ),
@@ -49,7 +46,6 @@ class BlogDetailPage extends StatelessWidget {
     );
   }
 
-  // Helper untuk tombol Back
   Widget _buildBackButton(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(20.0),
@@ -79,27 +75,28 @@ class BlogDetailPage extends StatelessWidget {
     );
   }
 
-  // Helper untuk Hero Image
   Widget _buildHeroImage(String imageUrl) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
-      // ClipRRect untuk membulatkan sudut gambar
       child: ClipRRect(
         borderRadius: BorderRadius.circular(15.0),
         child: Image.asset(
-          // Gunakan Image.asset
-          imageUrl, // Ambil gambar dari model
+          imageUrl,
           height: 220,
           width: double.infinity,
           fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            height: 220,
+            color: Colors.grey,
+            child: const Center(child: Icon(Icons.broken_image)),
+          ),
         ),
       ),
     );
   }
 
-  // Helper untuk Judul dan Isi
-  Widget _buildBlogContent(String title, String date) {
-    // Teks placeholder Lorem Ipsum
+  // UPDATE: Menambahkan parameter author
+  Widget _buildBlogContent(String title, String date, String author) {
     final String loremIpsum = lorem(paragraphs: 3, words: 150);
 
     return Padding(
@@ -116,27 +113,65 @@ class BlogDetailPage extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12), // Sedikit jarak sebelum metadata
+          // Metadata Row (Tanggal & Author)
+          Row(
+            children: [
+              // Tanggal
+              Icon(
+                Icons.calendar_today,
+                color: Colors.white.withOpacity(0.7),
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                date,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+              ),
 
-          // Tanggal
-          Text(
-            date,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
-              fontSize: 16,
-            ),
+              const SizedBox(width: 20), // Jarak pemisah
+              // Author
+              Icon(
+                Icons.person,
+                color: Colors.white.withOpacity(0.7),
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                author,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 14,
+                  fontWeight: FontWeight
+                      .bold, // Bold agar author lebih menonjol sedikit
+                ),
+              ),
+            ],
           ),
+
           const SizedBox(height: 25),
+
+          // Divider (Garis pemisah opsional agar lebih rapi)
+          Divider(color: Colors.white.withOpacity(0.3)),
+
+          const SizedBox(height: 15),
 
           // Isi (Lorem Ipsum)
           Text(
             loremIpsum,
+            textAlign: TextAlign.justify, // Rata kanan-kiri agar rapi
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
               fontSize: 16,
-              height: 1.6, // Jarak antar baris
+              height: 1.6,
             ),
           ),
+
+          // Jarak bawah agar scroll tidak mentok
+          const SizedBox(height: 40),
         ],
       ),
     );

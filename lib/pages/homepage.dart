@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hmte_app/pages/arsip_materi_page.dart';
+import 'package:url_launcher/url_launcher.dart'; // 1. IMPORT TAMBAHAN
 import 'package:hmte_app/pages/elevote_page.dart';
 import 'package:hmte_app/pages/ewine_page.dart';
 import 'package:hmte_app/pages/kalender_page.dart';
@@ -8,6 +8,7 @@ import 'package:hmte_app/models/blog_post_mode.dart';
 import 'package:hmte_app/pages/profile_page.dart';
 import 'package:hmte_app/pages/blog_detail_page.dart';
 import 'package:hmte_app/supabase_service.dart';
+// Note: import 'package:hmte_app/pages/arsip_materi_page.dart'; bisa dihapus jika tidak dipakai lagi
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,7 +18,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Warna utama background
   static const Color kMainBlue = Color(0xFF313A6A);
   static const Color kLightBlue = Color(0xFF0172B2);
 
@@ -29,38 +29,51 @@ class _HomeScreenState extends State<HomeScreen> {
     _fetchUserName();
   }
 
+  // 2. FUNGSI UNTUK MEMBUKA LINK DRIVE
+  Future<void> _launchArsipUrl() async {
+    const urlString =
+        'https://drive.google.com/drive/folders/1-WCMxk5vt3ageLOkwv1HyP5Ha_4N5Z_o?usp=drive_link';
+    final Uri url = Uri.parse(urlString);
+
+    try {
+      if (!await launchUrl(
+        url,
+        mode: LaunchMode.inAppBrowserView, // Mode In-App Browser
+      )) {
+        throw Exception('Could not launch $url');
+      }
+    } catch (e) {
+      debugPrint('Error launching URL: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal membuka link: $e')));
+      }
+    }
+  }
+
   Future<void> _fetchUserName() async {
     try {
       final client = SupabaseService.client;
       final user = client.auth.currentUser;
-
       if (user != null) {
-        // GANTI .single() menjadi .maybeSingle()
         final response = await client
             .from('profiles')
             .select('name')
             .eq('id', user.id)
-            .maybeSingle(); // <--- SOLUSI
-
-        // Cek apakah response TIDAK null sebelum mengambil data
+            .maybeSingle();
         if (response != null && response.isNotEmpty) {
           setState(() {
             _userName = response['name'] as String?;
           });
         } else {
-          // Handle jika user login tapi tidak punya profile
-          // Anda bisa set default name di sini
           setState(() {
-            _userName = 'Guest'; // Atau 'Nama Default', dll.
+            _userName = 'Guest';
           });
         }
       }
     } catch (e) {
-      // Handle jika ada error lain (cth: network, RLS, dll)
-      debugPrint('Error fetching user name: $e');
-      setState(() {
-        _userName = 'Error'; // Tampilkan error di UI jika perlu
-      });
+      debugPrint('Error: $e');
     }
   }
 
@@ -77,49 +90,40 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Konten utama yang bisa di-scroll
-              SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. Header
-                      _buildHeader(context),
-                      const SizedBox(height: 30),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context),
+                  const SizedBox(height: 30),
 
-                      // 2. Grid Menu
-                      _buildGridMenu(context),
-                      const SizedBox(height: 30),
+                  _buildGridMenu(context),
+                  const SizedBox(height: 30),
 
-                      // 3. Image Carousel
-                      _buildImageCarousel(),
-
-                      // Memberi jarak agar tidak tertutup bottom nav
-                      const SizedBox(height: 120),
-                    ],
+                  const Text(
+                    "E-Wine Terbaru",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ),
+                  const SizedBox(height: 15),
 
-              // 4. Bottom Navigation Bar (Mengambang)
-              Positioned(
-                bottom: 20,
-                left: 20,
-                right: 20,
-                child: _buildBottomNav(context),
+                  _buildBlogList(),
+
+                  const SizedBox(height: 40),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // Widget untuk Header
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 20.0),
@@ -136,17 +140,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           GestureDetector(
             onTap: () {
-              if (_userName != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfilePage()),
-                );
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => _userName != null
+                      ? const ProfilePage()
+                      : const LoginScreen(),
+                ),
+              );
             },
             child: Container(
               padding: const EdgeInsets.all(12),
@@ -162,40 +163,43 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Widget untuk Grid Menu
   Widget _buildGridMenu(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildGridItem(Icons.how_to_vote, 'Elevote', () {
-          Navigator.push(
+        _buildGridItem(
+          Icons.how_to_vote,
+          'Elevote',
+          () => Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const ElevotePage()),
-          );
-        }),
-        _buildGridItem(Icons.calendar_today, 'Kalender', () {
-          Navigator.push(
+          ),
+        ),
+        _buildGridItem(
+          Icons.calendar_today,
+          'Kalender',
+          () => Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const KalenderPage()),
-          );
-        }),
-        _buildGridItem(Icons.newspaper, 'EWine', () {
-          Navigator.push(
+          ),
+        ),
+        _buildGridItem(
+          Icons.newspaper,
+          'EWine',
+          () => Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const EWinePage()),
-          );
-        }),
+          ),
+        ),
+        // 3. GANTI AKSI TOMBOL ARSIP MATERI
         _buildGridItem(Icons.folder_copy_outlined, 'Arsip Materi', () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ArsipMateriPage()),
-          );
+          // Memanggil fungsi launch URL, bukan Navigator.push
+          _launchArsipUrl();
         }),
       ],
     );
   }
 
-  // Helper widget untuk setiap item di grid
   Widget _buildGridItem(IconData icon, String label, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -221,31 +225,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Widget untuk Image Carousel
-  Widget _buildImageCarousel() {
-    return SizedBox(
-      height: 200,
-      // Gunakan ListView.builder untuk membuat list dari data model
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        // Ambil jumlah item dari list data kita
-        itemCount: blogDataList.length,
-        itemBuilder: (context, index) {
-          // Ambil data postingan blog satu per satu
-          final post = blogDataList[index];
-
-          // Panggil _buildImageCard dengan data yang benar
-          return _buildImageCard(
-            context: context,
-            post: post, // Gunakan title sebagai label
-          );
-        },
-      ),
+  Widget _buildBlogList() {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: blogDataList.length > 2 ? 2 : blogDataList.length,
+      itemBuilder: (context, index) {
+        final post = blogDataList[index];
+        return _buildBlogCard(context: context, post: post);
+      },
     );
   }
 
-  // Helper widget untuk setiap item di carousel
-  Widget _buildImageCard({
+  Widget _buildBlogCard({
     required BuildContext context,
     required BlogPost post,
   }) {
@@ -257,99 +249,85 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
       child: Container(
-        width: 300,
-        margin: const EdgeInsets.only(right: 16),
+        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          image: DecorationImage(
-            image: AssetImage(post.imageUrl),
-            fit: BoxFit.cover,
-          ),
-        ),
-        // Overlay gradient agar teks terbaca
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                bottom: 10,
-                left: 10,
-                child: Text(
-                  post.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+              child: Image.asset(
+                post.imageUrl,
+                height: 140,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (ctx, err, stack) => Container(
+                  height: 140,
+                  color: Colors.grey,
+                  child: const Center(child: Icon(Icons.broken_image)),
                 ),
               ),
-            ],
-          ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    post.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: kMainBlue,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        post.date,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(width: 16),
+                      Icon(Icons.person, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          post.author,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ),
-    );
-  }
-
-  // Widget untuk Bottom Navigation Bar
-  Widget _buildBottomNav(BuildContext context) {
-    return Container(
-      height: 75,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const KalenderPage()),
-              );
-            },
-            child: Icon(
-              Icons.calendar_today_outlined,
-              color: Colors.grey[600],
-              size: 30,
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Icon(Icons.home, color: kMainBlue, size: 30),
-          ),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfilePage()),
-              );
-            },
-            child: Icon(
-              Icons.person_outline,
-              color: Colors.grey[600],
-              size: 30,
-            ),
-          ),
-        ],
       ),
     );
   }

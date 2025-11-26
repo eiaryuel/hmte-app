@@ -5,14 +5,12 @@ import 'package:hmte_app/pages/blog_detail_page.dart';
 class EWinePage extends StatelessWidget {
   const EWinePage({super.key});
 
-  // Warna baru Anda
   static const Color kMainBlue = Color(0xFF313A6A);
   static const Color kLightBlue = Color(0xFF0172B2);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      // 1. Background Gradien
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [kLightBlue, kMainBlue],
@@ -23,26 +21,21 @@ class EWinePage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
-          // 2. Gunakan SingleChildScrollView agar daftar bisa di-scroll
           child: SingleChildScrollView(
             child: Column(
               children: [
-                // 3. Tombol "Back" Kustom
                 _buildBackButton(context),
                 const SizedBox(height: 20),
 
-                // 4. Daftar Kartu Blog
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  // Ganti Column hardcoded dengan .map()
                   child: Column(
                     children: blogDataList.map((post) {
-                      // Loop data dari model dan buat widget-nya
                       return _buildBlogCard(context, post: post);
-                    }).toList(), // Ubah hasil .map() menjadi List<Widget>
+                    }).toList(),
                   ),
                 ),
-                const SizedBox(height: 20), // Padding di bawah
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -53,10 +46,9 @@ class EWinePage extends StatelessWidget {
 
   // --- WIDGET HELPER ---
 
-  // Tombol "Back" (sama seperti halaman lain)
   Widget _buildBackButton(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20.0), // Beri padding
+      padding: const EdgeInsets.all(20.0),
       child: Row(
         children: [
           GestureDetector(
@@ -83,7 +75,6 @@ class EWinePage extends StatelessWidget {
     );
   }
 
-  // Helper untuk membuat satu kartu blog
   Widget _buildBlogCard(BuildContext context, {required BlogPost post}) {
     return GestureDetector(
       onTap: () {
@@ -93,20 +84,25 @@ class EWinePage extends StatelessWidget {
         );
       },
       child: Container(
-        height: 200, // Beri tinggi tetap
+        height: 200,
         width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 20.0), // Jarak antar kartu
-        // ClipRRect untuk membulatkan sudut Stack
+        margin: const EdgeInsets.only(bottom: 20.0),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(15.0),
           child: Stack(
-            // Gunakan Stack untuk menumpuk gambar, gradien, dan teks
             fit: StackFit.expand,
             children: [
               // 1. Gambar Background
-              Image.asset(post.imageUrl, fit: BoxFit.cover),
+              Image.asset(
+                post.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: Colors.grey,
+                  child: const Icon(Icons.broken_image, color: Colors.white),
+                ),
+              ),
 
-              // 2. Gradien Overlay (agar teks terbaca)
+              // 2. Gradien Overlay
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -117,25 +113,65 @@ class EWinePage extends StatelessWidget {
                 ),
               ),
 
-              // 3. Teks (Judul dan Tanggal)
+              // 3. Info (Judul, Tanggal, Author)
               Positioned(
                 bottom: 20,
                 left: 20,
+                right: 20, // Tambahkan right agar teks tidak bablas ke kanan
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Judul
                     Text(
                       post.title,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
+                        fontSize: 20, // Sedikit diperkecil agar muat
                         fontWeight: FontWeight.bold,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      post.date,
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    const SizedBox(height: 8),
+
+                    // Baris untuk Tanggal dan Author
+                    Row(
+                      children: [
+                        // Tanggal
+                        const Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          post.date,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                        ),
+
+                        const SizedBox(width: 15), // Jarak pemisah
+                        // Author (Ditambahkan di sini)
+                        const Icon(
+                          Icons.person,
+                          size: 14,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          // Gunakan Expanded agar nama author panjang tidak error
+                          child: Text(
+                            post.author,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
