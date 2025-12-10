@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hmte_app/pages/homepage.dart';
 import 'package:hmte_app/pages/login_page.dart';
 import 'package:hmte_app/supabase_service.dart';
@@ -6,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   await SupabaseService.initialize();
   runApp(const MyApp());
 }

@@ -42,6 +42,7 @@ dependencies:
   flutter_lorem: ^2.0.0
   supabase_flutter: ^2.5.0
   url_launcher: ^6.3.2
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +70,7 @@ flutter:
   assets:
     - assets/images/logo.png
     - assets/images/blogs/
+    - .env
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

@@ -1,11 +1,17 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService {
-  static const String supabaseUrl = 'https://fwyjgakhsqahgwpngjtj.supabase.co';
-  static const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3eWpnYWtoc3FhaGd3cG5nanRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NDMzNTgsImV4cCI6MjA3NzIxOTM1OH0.z-9HpHXdQoJaDPGiQtd8QdcsUyILHcK8TLyc2GcjBUc';
+  // Read values from dotenv
+  // We use ?? '' to provide a fallback (or you can throw an error if missing)
+  static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
+  static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   static Future<void> initialize() async {
+    if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+      throw Exception('Supabase credentials not found in .env file');
+    }
+
     await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
   }
 
